@@ -15,4 +15,4 @@ for word in words:
         with open('./dog_images/dog{}.jpg'.format(str(cnt)), 'wb') as f:
             f.write(res.content)
         cnt += 1
-
+n
