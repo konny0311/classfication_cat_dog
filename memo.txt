@@ -15,3 +15,6 @@ augmentation
 val-lossの振れ幅gray>color
  color適応したモデルだと情報量少ないgrayに対しては敏感すぎるかも。
  filter/dropout減らしてみる。
+
+ loss, accの幅がガタガタ<- lr下げる、ドロップアウト小さくする？
+ 画像サイズ128
