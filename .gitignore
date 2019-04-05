@@ -2,6 +2,5 @@ cat_images/
 dog_images/
 .ipynb_checkpoints/
 .vscode/
-clean_images/
 logs/
 .DS_Store

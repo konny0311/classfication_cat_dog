@@ -17,8 +17,9 @@ from matplotlib import pyplot as plt
 import keras
 import keras.callbacks as KC
 
-cat_dir = 'clean_images/cat_images/'
-dog_dir = 'clean_images/dog_images/'
+train_dir = 'clean_images/train_images/'
+valid_dir = 'clean_images/valid_images/'
+test_dir = 'clean_images/test_images/'
 SIZE = 64 #100->64
 TRAIN_RATIO = 0.8
 RESHAPED = 0
@@ -44,55 +45,32 @@ else:
 SAVED_MODEL_PATH = 'models/cat_dog_classfication_{}_{}_model.hdf5'.format(aug_str, color_mode)
 IMG_PATH = 'chart/{}_{}.png'.format(aug_str, color_mode)
 
+def create_images_answers(dir_path):
+    files = glob.glob(os.path.join(dir_path, '*.jpg'))
+    files.sort()
+    images = [resize_for_model(cv2.imread(file, COLOR_MODE)) for file in files]
+
+    return images
+
 def prepare_data():
     # 猫(0)と犬(1)の画像を取得してフラグを追加したにシャッフル加工してデータとして返す。
     
-    images = []
-    cat_answers = []
-    dog_answers = []
-    cat_images = []
-    dog_images = []
-    validation_images = []
-    validation_answers = []
+    train_dog_images = create_images_answers(train_dir + 'dog/')
+    train_cat_images = create_images_answers(train_dir + 'cat/')
+    valid_dog_images = create_images_answers(valid_dir + 'dog/')
+    valid_cat_images = create_images_answers(valid_dir + 'cat/')
+    test_dog_images = create_images_answers(test_dir + 'dog/')
+    test_cat_images = create_images_answers(test_dir + 'cat/')
 
-    cat_files = glob.glob(os.path.join(cat_dir, '*.jpg'))
-    cat_files.sort()
-    dog_files = glob.glob(os.path.join(dog_dir, '*.jpg'))
-    dog_files.sort()
+    train_images = np.array(train_dog_images + train_cat_images)
+    valid_images = np.array(valid_dog_images + valid_cat_images)
+    test_images = np.array(test_dog_images + test_cat_images)
 
-    for cat_image in cat_files:
-        if cat_image.endswith('.jpg'):
-            cat_images.append(resize_for_model(cv2.imread(cat_image, COLOR_MODE)))
-            cat_answers.append(0)
+    train_answers = np.array([0] * len(train_dog_images) + [1] * len(train_cat_images))
+    valid_answers = np.array([0] * len(valid_dog_images) + [1] * len(valid_cat_images))
+    test_answers = np.array([0] * len(test_dog_images) + [1] * len(test_cat_images))
 
-    for dog_image in dog_files:
-        if dog_image.endswith('.jpg'):
-            dog_images.append(resize_for_model(cv2.imread(dog_image, COLOR_MODE)))
-            dog_answers.append(1)
-
-    test_border_cat = int(len(cat_images) * (1 - TRAIN_RATIO))
-    test_border_dog = int(len(dog_images) * (1 - TRAIN_RATIO))
-    
-    test_images = np.array(cat_images[:test_border_cat] + dog_images[:test_border_dog])
-    test_answers = np.array(cat_answers[:test_border_cat] + dog_answers[:test_border_dog])
-            
-    validation_border_cat = test_border_cat + int(len(cat_images) * TRAIN_RATIO * VALIDATION_SPLIT)
-    validation_border_dog = test_border_dog + int(len(dog_images) * TRAIN_RATIO * VALIDATION_SPLIT)
-
-    validation_images = np.array(cat_images[test_border_cat:test_border_cat + validation_border_cat] + dog_images[test_border_dog:validation_border_dog])
-    validation_answers = np.array(cat_answers[test_border_cat:test_border_cat + validation_border_cat] + dog_answers[test_border_dog:validation_border_dog])
-    train_images = np.array(cat_images[validation_border_cat:] + dog_images[validation_border_dog:])
-    train_answers = np.array(cat_answers[validation_border_cat:] + dog_answers[validation_border_dog:])
-
-    # imagesとanswersの関係保ったままシャッフル
-    data = []
-    for images, answers in ((train_images, train_answers), (validation_images, validation_answers), (test_images, test_answers)):
-        random_idxs = np.random.permutation(len(images))
-        images = images[random_idxs]
-        answers = answers[random_idxs]
-        data.append([images, answers])
-    
-    return (data[0][0], data[0][1]), (data[1][0], data[1][1]), (data[2][0], data[2][1])
+    return (train_images, train_answers), (valid_images, valid_answers), (test_images, test_answers)
 
 def resize_for_model(image):
     # np形式のimageを特定の大きさにresizeする。
@@ -107,8 +85,13 @@ def remove_log_files(dir):
 if __name__ == '__main__':
     (X_train, y_train),(X_valid, y_valid), (X_test, y_test) = prepare_data()
     print(len(X_train), 'X_train amount')
+    print(len(y_train), 'y_train amount')
     print(len(X_valid), 'X_valid amount')    
+    print(len(y_valid), 'y_valid amount')
+
     print(len(X_test), 'X_test amount')
+    print(len(y_test), 'y_test amount')
+
     print(X_train.shape, 'X_train shape')
     print(X_valid.shape, 'X_valid shape')    
     print(X_test.shape, 'X_test shape')
