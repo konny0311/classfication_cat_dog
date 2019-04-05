@@ -16,6 +16,7 @@ from keras.optimizers import SGD, Adam
 from matplotlib import pyplot as plt
 import keras
 import keras.callbacks as KC
+from keras import regularizers
 
 train_dir = 'clean_images/train_images/'
 valid_dir = 'clean_images/valid_images/'
@@ -26,11 +27,13 @@ RESHAPED = 0
 NB_CLASSES = 2
 OPTIMIZER = SGD()
 BATCH_SIZE = 131
-NB_EPOCH = 100
+NB_EPOCH = 2000
 VALIDATION_SPLIT = 0.4
 VERBOSE = 1
-COLOR_MODE = 0
+COLOR_MODE = 1
 USE_DATAGEN = False
+LR=0.00005
+DROPOUT=0.3
 
 if USE_DATAGEN:
     aug_str = 'with_aug'
@@ -130,12 +133,12 @@ Y_test = np_utils.to_categorical(y_test, NB_CLASSES)
 # In[4]:
 
 
-callbacks = [KC.TensorBoard()
-                     ,KC.ModelCheckpoint(filepath=SAVED_MODEL_PATH,
-                                                           verbose=1,
-                                                           save_weights_only=True,
-                                                           save_best_only=True,
-                                                           period=10)]
+callbacks = [KC.TensorBoard(),
+             KC.ModelCheckpoint(filepath=SAVED_MODEL_PATH,
+             verbose=1,
+             save_weights_only=True,
+             save_best_only=True,
+             period=10)]
 
 
 # In[5]:
@@ -145,12 +148,11 @@ from keras.preprocessing.image  import ImageDataGenerator
 
 if USE_DATAGEN:
     datagen = ImageDataGenerator(featurewise_center=True,
-                                                            featurewise_std_normalization=True,
-                                                            rotation_range=20,
-                                                            width_shift_range=0.2,
-                                                            height_shift_range=0.2,
-                                                            horizontal_flip=True)
-
+                                 featurewise_std_normalization=True,
+                                 rotation_range=20,
+                                 width_shift_range=0.2,
+                                 height_shift_range=0.2,
+                                 vertical_flip=True)
     datagen.fit(X_train)
 
 
@@ -166,24 +168,24 @@ if COLOR_MODE == 1: #color
     model.add(Conv2D(FILTERS, 3, activation='relu', input_shape=SHAPE))
     model.add(Conv2D(FILTERS, 3, activation='relu'))
     model.add(MaxPooling2D())
-    model.add(Dropout(0.5))
+    model.add(Dropout(DROPOUT))
 
 else: #gray
     # model for gray without datagen
-    FILTERS = 16
+    FILTERS = 8
     model.add(Conv2D(FILTERS, 3, activation='relu', input_shape=SHAPE))
     model.add(Conv2D(FILTERS, 3, activation='relu'))
     model.add(MaxPooling2D())
-    model.add(Dropout(0.5))
+    model.add(Dropout(DROPOUT))
 
 #この層無い方がマシっぽい
-# model.add(Conv2D(UNITS * 2, (3, 3), activation='relu'))
-# model.add(Conv2D(UNITS * 2, (3, 3), activation='relu'))
-# model.add(MaxPooling2D(pool_size=(2, 2)))
-# model.add(Dropout(0.5))
+model.add(Conv2D(FILTERS * 2, 3, activation='relu'))
+model.add(Conv2D(FILTERS * 2, 3, activation='relu'))
+model.add(MaxPooling2D())
+#model.add(Dropout(0.5))
 
 model.add(Flatten())
-# model.add(Dense(256, activation='relu'))
+# model.add(Dense(2, activation='relu'))
 # model.add(Dropout(0.6)) #無い方が良い
 model.add(Dense(NB_CLASSES, activation='softmax'))
 
@@ -191,7 +193,7 @@ model.add(Dense(NB_CLASSES, activation='softmax'))
 # In[12]:
 
 
-model.compile(loss='binary_crossentropy', optimizer=Adam(lr=0.0001), metrics=['accuracy'])
+model.compile(loss='binary_crossentropy', optimizer=Adam(lr=LR), metrics=['accuracy'])
 
 
 # In[13]:
@@ -199,9 +201,9 @@ model.compile(loss='binary_crossentropy', optimizer=Adam(lr=0.0001), metrics=['a
 
 remove_log_files('logs/')
 if USE_DATAGEN:
-    history = model.fit_generator(datagen.flow(X_train, Y_train, batch_size=BATCH_SIZE), epochs=NB_EPOCH * 4, verbose=VERBOSE, validation_data=(X_valid, Y_valid), shuffle=True, callbacks=callbacks, steps_per_epoch=1)
+    history = model.fit_generator(datagen.flow(X_train, Y_train, batch_size=BATCH_SIZE), epochs=NB_EPOCH, verbose=VERBOSE, validation_data=(X_valid, Y_valid), shuffle=True, callbacks=callbacks, steps_per_epoch=1)
 else:
-    history = model.fit(X_train, Y_train, batch_size=BATCH_SIZE, epochs=NB_EPOCH * 4, verbose=VERBOSE, validation_data=(X_valid, Y_valid), shuffle=True, callbacks=callbacks)
+    history = model.fit(X_train, Y_train, batch_size=BATCH_SIZE, epochs=NB_EPOCH, verbose=VERBOSE, validation_data=(X_valid, Y_valid), shuffle=True, callbacks=callbacks)
 
 
 # In[14]:
@@ -231,7 +233,6 @@ plt.ylabel('loss')
 plt.xlabel('epoch')
 plt.legend(['train', 'val'], loc='upper left')
 plt.savefig(IMG_PATH)
-plt.show()
 
 
 # train_dataのacc, lossは順調に推移するが、val_dataに対しては一定幅で同水準に留まる。
