@@ -9,7 +9,7 @@ import numpy as np
 import os
 import glob
 from keras.utils import np_utils
-from keras.models import Sequential
+from keras.models import Sequential, Model
 from keras.layers import Dense, Dropout, Flatten
 from keras.layers import  Conv1D, Conv2D, MaxPooling2D
 from keras.optimizers import SGD, Adam
@@ -17,6 +17,7 @@ from matplotlib import pyplot as plt
 import keras
 import keras.callbacks as KC
 from keras import regularizers
+from keras.engine.topology import Input
 
 train_dir = 'clean_images/train_images/'
 valid_dir = 'clean_images/valid_images/'
@@ -27,13 +28,13 @@ RESHAPED = 0
 NB_CLASSES = 2
 OPTIMIZER = SGD()
 BATCH_SIZE = 131
-NB_EPOCH = 2000
+NB_EPOCH = 500
 VALIDATION_SPLIT = 0.4
 VERBOSE = 1
 COLOR_MODE = 1
 USE_DATAGEN = False
 LR=0.00005
-DROPOUT=0.3
+DROPOUT=0.25
 
 if USE_DATAGEN:
     aug_str = 'with_aug'
@@ -160,39 +161,57 @@ if USE_DATAGEN:
 
 
 #参考: https://keras.io/getting-started/sequential-model-guide/
-model = Sequential()
+#model = Sequential()
 
-if COLOR_MODE == 1: #color
-    FILTERS = 16
+#if COLOR_MODE == 1: #color
+#    FILTERS = 16
     # with 3 channels
-    model.add(Conv2D(FILTERS, 3, activation='relu', input_shape=SHAPE))
-    model.add(Conv2D(FILTERS, 3, activation='relu'))
-    model.add(MaxPooling2D())
-    model.add(Dropout(DROPOUT))
+#    model.add(Conv2D(FILTERS, 3, activation='relu', input_shape=SHAPE))
+#    model.add(Conv2D(FILTERS, 3, activation='relu'))
+#    model.add(MaxPooling2D())
+#    model.add(Dropout(DROPOUT))
 
-else: #gray
+#else: #gray
     # model for gray without datagen
-    FILTERS = 8
-    model.add(Conv2D(FILTERS, 3, activation='relu', input_shape=SHAPE))
-    model.add(Conv2D(FILTERS, 3, activation='relu'))
-    model.add(MaxPooling2D())
-    model.add(Dropout(DROPOUT))
+#    FILTERS = 8
+#    model.add(Conv2D(FILTERS, 3, activation='relu', input_shape=SHAPE))
+#    model.add(Conv2D(FILTERS, 3, activation='relu'))
+#    model.add(MaxPooling2D())
+#    model.add(Dropout(DROPOUT))
 
 #この層無い方がマシっぽい
-model.add(Conv2D(FILTERS * 2, 3, activation='relu'))
-model.add(Conv2D(FILTERS * 2, 3, activation='relu'))
-model.add(MaxPooling2D())
+#model.add(Conv2D(FILTERS * 2, 3, activation='relu'))
+#model.add(Conv2D(FILTERS * 2, 3, activation='relu'))
+#model.add(MaxPooling2D())
 #model.add(Dropout(0.5))
 
-model.add(Flatten())
+#model.add(Flatten())
 # model.add(Dense(2, activation='relu'))
 # model.add(Dropout(0.6)) #無い方が良い
-model.add(Dense(NB_CLASSES, activation='softmax'))
+#model.add(Dense(NB_CLASSES, activation='softmax'))
 
+#functional API
+input_layer = Input(shape=SHAPE)
 
+if COLOR_MODE == 1:
+    FILTERS = 16
+else:
+    FILTERS = 8
+
+layer2 = Conv2D(FILTERS, 3, activation='relu')(input_layer)
+layer3 = Conv2D(FILTERS, 3, activation='relu')(layer2)
+layer4 = MaxPooling2D()(layer3)
+layer5 = Dropout(DROPOUT)(layer4)
+
+layer6 = Conv2D(FILTERS * 2, 3, activation='relu')(layer5)
+layer7 = Conv2D(FILTERS * 2, 3, activation='relu')(layer6)
+layer8 = MaxPooling2D()(layer7)
+layer9 = Dropout(DROPOUT)(layer8)
 # In[12]:
 
-
+flatten = Flatten()(layer9)
+output = Dense(NB_CLASSES, activation='softmax')(flatten)
+model = Model(input_layer, output)
 model.compile(loss='binary_crossentropy', optimizer=Adam(lr=LR), metrics=['accuracy'])
 
 
