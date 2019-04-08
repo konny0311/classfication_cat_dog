@@ -27,8 +27,8 @@ TRAIN_RATIO = 0.8
 RESHAPED = 0
 NB_CLASSES = 2
 OPTIMIZER = SGD()
-BATCH_SIZE = 128
-NB_EPOCH = 500
+BATCH_SIZE = 171
+NB_EPOCH = 1000
 VALIDATION_SPLIT = 0.4
 VERBOSE = 1
 COLOR_MODE = 1
@@ -84,6 +84,10 @@ def remove_log_files(dir):
     files = glob.glob(os.path.join(dir, '*.local'))
     for file in files:
         os.remove(file)
+
+def predict_classes_for_functional(model, test_data):
+    #Functional APIを使ったモデルはpredict_classesメソッドが無いので代用
+    return np.argmax(model.predict(test_data), axis=1)
     
 
 if __name__ == '__main__':
@@ -148,9 +152,7 @@ callbacks = [KC.TensorBoard(),
 from keras.preprocessing.image  import ImageDataGenerator
 
 if USE_DATAGEN:
-    datagen = ImageDataGenerator(featurewise_center=True,
-                                 featurewise_std_normalization=True,
-                                 rotation_range=20,
+    datagen = ImageDataGenerator(rotation_range=10,
                                  width_shift_range=0.2,
                                  height_shift_range=0.2,
                                  vertical_flip=True)
@@ -194,7 +196,7 @@ if USE_DATAGEN:
 input_layer = Input(shape=SHAPE)
 
 if COLOR_MODE == 1:
-    FILTERS = 16
+    FILTERS = 8
 else:
     FILTERS = 8
 
@@ -220,7 +222,7 @@ model.compile(loss='binary_crossentropy', optimizer=Adam(lr=LR), metrics=['accur
 
 remove_log_files('logs/')
 if USE_DATAGEN:
-    history = model.fit_generator(datagen.flow(X_train, Y_train, batch_size=BATCH_SIZE), epochs=NB_EPOCH, verbose=VERBOSE, validation_data=(X_valid, Y_valid), shuffle=True, callbacks=callbacks, steps_per_epoch=1)
+    history = model.fit_generator(datagen.flow(X_train, Y_train, batch_size=BATCH_SIZE), epochs=NB_EPOCH, verbose=VERBOSE, validation_data=(X_valid, Y_valid), shuffle=True, callbacks=callbacks, samples_per_epoch=X_train.shape[0])
 else:
     history = model.fit(X_train, Y_train, batch_size=BATCH_SIZE, epochs=NB_EPOCH, verbose=VERBOSE, validation_data=(X_valid, Y_valid), shuffle=True, callbacks=callbacks)
 
@@ -260,7 +262,7 @@ plt.savefig(IMG_PATH)
 # In[ ]:
 
 
-predict_answers = model.predict_classes(X_test)
+predict_answers = predict_classes_for_functional(model, X_test)
 
 
 # In[ ]:
