@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 import os
 import glob
+import csv
 from keras.utils import np_utils
 from keras.models import Sequential, Model
 from keras.layers import Dense, Dropout, Flatten
@@ -28,13 +29,13 @@ RESHAPED = 0
 NB_CLASSES = 2
 OPTIMIZER = SGD()
 BATCH_SIZE = 171
-NB_EPOCH = 1000
+NB_EPOCH = 10
 VALIDATION_SPLIT = 0.4
 VERBOSE = 1
 COLOR_MODE = 1
-USE_DATAGEN = False
-LR=0.00005
-DROPOUT=0.35
+USE_DATAGEN = True
+LR=0.0005
+DROPOUT=0.5
 
 if USE_DATAGEN:
     aug_str = 'with_aug'
@@ -49,12 +50,14 @@ else:
 SAVED_MODEL_PATH = 'models/cat_dog_classfication_{}_{}_model.hdf5'.format(aug_str, color_mode)
 IMG_PATH = 'chart/{}_{}.png'.format(aug_str, color_mode)
 
-def create_images_answers(dir_path):
+def create_images_answers(dir_path, filename=False):
     files = glob.glob(os.path.join(dir_path, '*.jpg'))
     files.sort()
     images = [resize_for_model(cv2.imread(file, COLOR_MODE)) for file in files]
-
-    return images
+    if filename == False:
+        return images
+    else:
+        return images, files
 
 def prepare_data():
     # 猫(0)と犬(1)の画像を取得してフラグを追加したにシャッフル加工してデータとして返す。
@@ -63,18 +66,19 @@ def prepare_data():
     train_cat_images = create_images_answers(train_dir + 'cat/')
     valid_dog_images = create_images_answers(valid_dir + 'dog/')
     valid_cat_images = create_images_answers(valid_dir + 'cat/')
-    test_dog_images = create_images_answers(test_dir + 'dog/')
-    test_cat_images = create_images_answers(test_dir + 'cat/')
+    test_dog_images, test_dog_filenames = create_images_answers(test_dir + 'dog/', filename=True)
+    test_cat_images, test_cat_filenames = create_images_answers(test_dir + 'cat/', filename=True)
 
     train_images = np.array(train_dog_images + train_cat_images)
     valid_images = np.array(valid_dog_images + valid_cat_images)
     test_images = np.array(test_dog_images + test_cat_images)
+    test_filenames = test_dog_filenames + test_cat_filenames
 
     train_answers = np.array([0] * len(train_dog_images) + [1] * len(train_cat_images))
     valid_answers = np.array([0] * len(valid_dog_images) + [1] * len(valid_cat_images))
     test_answers = np.array([0] * len(test_dog_images) + [1] * len(test_cat_images))
 
-    return (train_images, train_answers), (valid_images, valid_answers), (test_images, test_answers)
+    return (train_images, train_answers), (valid_images, valid_answers), (test_images, test_answers), test_filenames
 
 def resize_for_model(image):
     # np形式のimageを特定の大きさにresizeする。
@@ -91,7 +95,7 @@ def predict_classes_for_functional(model, test_data):
     
 
 if __name__ == '__main__':
-    (X_train, y_train),(X_valid, y_valid), (X_test, y_test) = prepare_data()
+    (X_train, y_train),(X_valid, y_valid), (X_test, y_test), test_filenames = prepare_data()
     print(len(X_train), 'X_train amount')
     print(len(y_train), 'y_train amount')
     print(len(X_valid), 'X_valid amount')    
@@ -293,6 +297,7 @@ for i in range(len(X_test)-1):
     answer = y_test[i]
     
     if predicted_num != answer:
+        print('wrong prediction:', test_filenames[i])
         if predicted_num == 0:
             label = 'cat'
             cat_wrong_cnt += 1
@@ -303,7 +308,10 @@ for i in range(len(X_test)-1):
 print('answer is dog, but cat is predicted:', cat_wrong_cnt)
 print('answer is cat, but dog is predicted:', dog_wrong_cnt)
 
-
+row = [len(y_test[y_test == 1]) - dog_wrong_cnt, cat_wrong_cnt, dog_wrong_cnt, len(y_test[y_test == 0]) - cat_wrong_cnt]
+with open('result.csv', 'a') as f:
+    writer = csv.writer(f)
+    writer.writerow(row)
 # 画像加工 min val-loss, filters, dropout, note<br>
 # gray 0.69, 16, 0.3, epoch50くらいで過学習<br>
 # color 0.59, 16, 0.3, epoch180くらいで過学習<br>
