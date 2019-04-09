@@ -4,3 +4,5 @@ dog_images/
 .vscode/
 logs/
 .DS_Store
+generated/
+data/
