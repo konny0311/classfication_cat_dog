@@ -17,6 +17,7 @@ import keras
 import keras.callbacks as KC
 from keras import regularizers
 from keras.engine.topology import Input
+from keras.preprocessing.image  import ImageDataGenerator
 
 train_dir = 'clean_images/train_images/'
 valid_dir = 'clean_images/valid_images/'
@@ -112,212 +113,144 @@ if __name__ == '__main__':
         SHAPE = (X_train.shape[1], X_train.shape[2], 1)
     print(SHAPE, 'shape')
 
-
-# In[2]:
-
-
-if SHAPE[2] == 1:
-    X_train = X_train.reshape(X_train.shape[0],  SIZE, SIZE, 1)
-    X_valid = X_valid.reshape(X_valid.shape[0],  SIZE, SIZE, 1)
-    X_test = X_test.reshape(X_test.shape[0],  SIZE, SIZE, 1)
+    if SHAPE[2] == 1:
+        X_train = X_train.reshape(X_train.shape[0],  SIZE, SIZE, 1)
+        X_valid = X_valid.reshape(X_valid.shape[0],  SIZE, SIZE, 1)
+        X_test = X_test.reshape(X_test.shape[0],  SIZE, SIZE, 1)
 
 
-X_train = X_train.astype('float32')
-X_valid = X_valid.astype('float32')
-X_test = X_test.astype('float32')
-X_train /= 255
-X_valid /= 255
-X_test /= 255
+    X_train = X_train.astype('float32')
+    X_valid = X_valid.astype('float32')
+    X_test = X_test.astype('float32')
+    X_train /= 255
+    X_valid /= 255
+    X_test /= 255
 
+    Y_train = np_utils.to_categorical(y_train, NB_CLASSES)
+    Y_valid = np_utils.to_categorical(y_valid, NB_CLASSES)
+    Y_test = np_utils.to_categorical(y_test, NB_CLASSES)
 
-# In[3]:
+    #functional API
+    input_layer = Input(shape=SHAPE)
 
-
-Y_train = np_utils.to_categorical(y_train, NB_CLASSES)
-Y_valid = np_utils.to_categorical(y_valid, NB_CLASSES)
-Y_test = np_utils.to_categorical(y_test, NB_CLASSES)
-
-
-# In[4]:
-
-
-callbacks = [KC.TensorBoard(),
-             KC.ModelCheckpoint(filepath=SAVED_MODEL_PATH,
-             verbose=1,
-             save_weights_only=True, #model全体を保存
-             save_best_only=True,
-             period=10)]
-
-
-# In[5]:
-
-
-from keras.preprocessing.image  import ImageDataGenerator
-
-if USE_DATAGEN:
-    datagen = ImageDataGenerator(rotation_range=10,
-                                 width_shift_range=0.2,
-                                 height_shift_range=0.2,
-                                 vertical_flip=True)
-    datagen.fit(X_train)
-
-
-# In[11]:
-
-
-#参考: https://keras.io/getting-started/sequential-model-guide/
-#model = Sequential()
-
-#if COLOR_MODE == 1: #color
-#    FILTERS = 16
-    # with 3 channels
-#    model.add(Conv2D(FILTERS, 3, activation='relu', input_shape=SHAPE))
-#    model.add(Conv2D(FILTERS, 3, activation='relu'))
-#    model.add(MaxPooling2D())
-#    model.add(Dropout(DROPOUT))
-
-#else: #gray
-    # model for gray without datagen
-#    FILTERS = 8
-#    model.add(Conv2D(FILTERS, 3, activation='relu', input_shape=SHAPE))
-#    model.add(Conv2D(FILTERS, 3, activation='relu'))
-#    model.add(MaxPooling2D())
-#    model.add(Dropout(DROPOUT))
-
-#この層無い方がマシっぽい
-#model.add(Conv2D(FILTERS * 2, 3, activation='relu'))
-#model.add(Conv2D(FILTERS * 2, 3, activation='relu'))
-#model.add(MaxPooling2D())
-#model.add(Dropout(0.5))
-
-#model.add(Flatten())
-# model.add(Dense(2, activation='relu'))
-# model.add(Dropout(0.6)) #無い方が良い
-#model.add(Dense(NB_CLASSES, activation='softmax'))
-
-#functional API
-input_layer = Input(shape=SHAPE)
-
-if COLOR_MODE == 1:
-    FILTERS = 8
-else:
-    FILTERS = 8
-
-layer2 = Conv2D(FILTERS, 3, activation='relu')(input_layer)
-layer3 = Conv2D(FILTERS, 3, activation='relu')(layer2)
-layer4 = MaxPooling2D()(layer3)
-layer5 = Dropout(DROPOUT)(layer4)
-
-layer6 = Conv2D(FILTERS * 2, 3, activation='relu')(layer5)
-layer7 = Conv2D(FILTERS * 2, 3, activation='relu')(layer6)
-layer8 = MaxPooling2D()(layer7)
-layer9 = Dropout(DROPOUT)(layer8)
-
-flatten = Flatten()(layer9)
-output = Dense(NB_CLASSES, activation='softmax')(flatten)
-model = Model(input_layer, output)
-model.compile(loss='binary_crossentropy', optimizer=Adam(lr=LR), metrics=['accuracy'])
-
-if len(sys.argv) > 1:
-    weights_file = sys.argv[1]
-    model.load_weights(weights_file)
-else:
-    remove_log_files('logs/')
-    if USE_DATAGEN:
-        history = model.fit_generator(datagen.flow(X_train, Y_train, batch_size=BATCH_SIZE), epochs=NB_EPOCH, verbose=VERBOSE, validation_data=(X_valid, Y_valid), shuffle=True, callbacks=callbacks, samples_per_epoch=X_train.shape[0])
+    if COLOR_MODE == 1:
+        FILTERS = 8
     else:
-        history = model.fit(X_train, Y_train, batch_size=BATCH_SIZE, epochs=NB_EPOCH, verbose=VERBOSE, validation_data=(X_valid, Y_valid), shuffle=True, callbacks=callbacks)
+        FILTERS = 8
+    #参考: https://keras.io/getting-started/sequential-model-guide/
+    layer2 = Conv2D(FILTERS, 3, activation='relu')(input_layer)
+    layer3 = Conv2D(FILTERS, 3, activation='relu')(layer2)
+    layer4 = MaxPooling2D()(layer3)
+    layer5 = Dropout(DROPOUT)(layer4)
 
-    model.save_weights(END_SAVED_MODEL_PATH)
-    score = model.evaluate(X_test, Y_test, verbose=VERBOSE)
-    print('Test score:', score[0])
-    print('Test acc:', score[1])
+    layer6 = Conv2D(FILTERS * 2, 3, activation='relu')(layer5)
+    layer7 = Conv2D(FILTERS * 2, 3, activation='relu')(layer6)
+    layer8 = MaxPooling2D()(layer7)
+    layer9 = Dropout(DROPOUT)(layer8)
 
-    plt.subplot(121)
-    plt.plot(history.history['acc'])
-    plt.plot(history.history['val_acc'])
-    plt.title('model acc')
-    plt.ylabel('acc') 
-    plt.xlabel('epoch')
-    plt.legend(['train', 'val'], loc='upper left')
+    flatten = Flatten()(layer9)
+    output = Dense(NB_CLASSES, activation='softmax')(flatten)
+    model = Model(input_layer, output)
+    model.compile(loss='binary_crossentropy', optimizer=Adam(lr=LR), metrics=['accuracy'])
 
-    plt.subplot(122)
-    plt.plot(history.history['loss'])
-    plt.plot(history.history['val_loss'])
-    plt.title('model loss')
-    plt.ylabel('loss')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'val'], loc='upper left')
-    plt.savefig(IMG_PATH)
+    if len(sys.argv) > 1:
+        print('推論モード')
+        weights_file = sys.argv[1]
+        model.load_weights(weights_file)
+    else:
+        print('学習モード')
+        callbacks = [KC.TensorBoard(),
+                    KC.ModelCheckpoint(filepath=SAVED_MODEL_PATH,
+                    verbose=1,
+                    save_weights_only=True, #model全体を保存
+                    save_best_only=True,
+                    period=10)]
+
+        if USE_DATAGEN:
+            datagen = ImageDataGenerator(rotation_range=10,
+                                        width_shift_range=0.2,
+                                        height_shift_range=0.2,
+                                        vertical_flip=True)
+            datagen.fit(X_train)
 
 
-# train_dataのacc, lossは順調に推移するが、val_dataに対しては一定幅で同水準に留まる。
-# 元データが少ないから？(https://datascience.stackexchange.com/questions/37815/what-to-do-if-training-loss-decreases-but-validation-loss-does-not-decrease)
-
-# In[ ]:
-
-
-predict_answers = predict_classes_for_functional(model, X_test)
-
-
-# In[ ]:
-cat_wrong_cnt = 0
-dog_wrong_cnt = 0
-
-# 間違った画像を表示する
-# plt.figure(figsize=(50,50))
-# columns = 5
-# for i, image in enumerate(X_test):
-#     plt.subplot(len(X_test) / columns + 1, columns, i + 1)
-#     predicted_num = predict_answers[i]
-#     answer = y_test[i]
-    
-#     if predicted_num != answer:
-#         if predicted_num == 0:
-#             label = 'cat'
-#             cat_wrong_cnt += 1
-#         else:
-#             label = 'dog'
-#             dog_wrong_cnt += 1
-#         plt.title(label, fontsize=40)
-#         plt.axis('off')
-#         plt.imshow(image)
-
-print(y_test)
-print(test_filenames)
-for i in range(len(X_test)-1):
-    predicted_num = predict_answers[i]
-    answer = y_test[i]
-    
-    if predicted_num != answer:
-        print('wrong prediction:', test_filenames[i])
-        if predicted_num == 0:
-            label = 'cat'
-            cat_wrong_cnt += 1
+        if len(sys.argv) > 1:
+            weights_file = sys.argv[1]
+            model.load_weights(weights_file)
         else:
-            label = 'dog'
-            dog_wrong_cnt += 1
+            remove_log_files('logs/')
+            if USE_DATAGEN:
+                history = model.fit_generator(datagen.flow(X_train, Y_train, batch_size=BATCH_SIZE), epochs=NB_EPOCH, verbose=VERBOSE, validation_data=(X_valid, Y_valid), shuffle=True, callbacks=callbacks, samples_per_epoch=X_train.shape[0])
+            else:
+                history = model.fit(X_train, Y_train, batch_size=BATCH_SIZE, epochs=NB_EPOCH, verbose=VERBOSE, validation_data=(X_valid, Y_valid), shuffle=True, callbacks=callbacks)
 
-print('answer is dog, but cat is predicted:', cat_wrong_cnt)
-print('answer is cat, but dog is predicted:', dog_wrong_cnt)
+            model.save_weights(END_SAVED_MODEL_PATH)
+            score = model.evaluate(X_test, Y_test, verbose=VERBOSE)
+            print('Test score:', score[0])
+            print('Test acc:', score[1])
 
-row = [len(y_test[y_test == 1]) - dog_wrong_cnt, cat_wrong_cnt, dog_wrong_cnt, len(y_test[y_test == 0]) - cat_wrong_cnt]
-with open('result.csv', 'a') as f:
-    writer = csv.writer(f)
-    writer.writerow(row)
-# 画像加工 min val-loss, filters, dropout, note<br>
-# gray 0.69, 16, 0.3, epoch50くらいで過学習<br>
-# color 0.59, 16, 0.3, epoch180くらいで過学習<br>
-# aug, 0.61, 16, 0.3, epoch180くらいで過学習<br>
-# gray & aug<br>
+            plt.subplot(121)
+            plt.plot(history.history['acc'])
+            plt.plot(history.history['val_acc'])
+            plt.title('model acc')
+            plt.ylabel('acc') 
+            plt.xlabel('epoch')
+            plt.legend(['train', 'val'], loc='upper left')
 
-# In[ ]:
+            plt.subplot(122)
+            plt.plot(history.history['loss'])
+            plt.plot(history.history['val_loss'])
+            plt.title('model loss')
+            plt.ylabel('loss')
+            plt.xlabel('epoch')
+            plt.legend(['train', 'val'], loc='upper left')
+            plt.savefig(IMG_PATH)
 
+    predict_answers = predict_classes_for_functional(model, X_test)
 
+    cat_wrong_cnt = 0
+    dog_wrong_cnt = 0
 
+    # 間違った画像を表示する
+    # plt.figure(figsize=(50,50))
+    # columns = 5
+    # for i, image in enumerate(X_test):
+    #     plt.subplot(len(X_test) / columns + 1, columns, i + 1)
+    #     predicted_num = predict_answers[i]
+    #     answer = y_test[i]
+        
+    #     if predicted_num != answer:
+    #         if predicted_num == 0:
+    #             label = 'cat'
+    #             cat_wrong_cnt += 1
+    #         else:
+    #             label = 'dog'
+    #             dog_wrong_cnt += 1
+    #         plt.title(label, fontsize=40)
+    #         plt.axis('off')
+    #         plt.imshow(image)
 
+    for i in range(len(X_test)-1):
+        predicted_num = predict_answers[i]
+        answer = y_test[i]
+        
+        if predicted_num != answer:
+            print('wrong prediction:', test_filenames[i])
+            if predicted_num == 0:
+                label = 'cat'
+                cat_wrong_cnt += 1
+            else:
+                label = 'dog'
+                dog_wrong_cnt += 1
 
-# In[ ]:
+    print('answer is dog, but cat is predicted:', cat_wrong_cnt)
+    print('answer is cat, but dog is predicted:', dog_wrong_cnt)
+
+    row = [len(y_test[y_test == 1]) - dog_wrong_cnt, cat_wrong_cnt, dog_wrong_cnt, len(y_test[y_test == 0]) - cat_wrong_cnt]
+    with open('result.csv', 'a') as f:
+        writer = csv.writer(f)
+        writer.writerow(row)
+
 
 
 
