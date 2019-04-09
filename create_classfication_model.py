@@ -1,14 +1,12 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
-
 import cv2
 import numpy as np
 import os
 import glob
 import csv
+import sys
 from keras.utils import np_utils
 from keras.models import Sequential, Model
 from keras.layers import Dense, Dropout, Flatten
@@ -29,7 +27,7 @@ RESHAPED = 0
 NB_CLASSES = 2
 OPTIMIZER = SGD()
 BATCH_SIZE = 171
-NB_EPOCH = 10
+NB_EPOCH = 1000
 VALIDATION_SPLIT = 0.4
 VERBOSE = 1
 COLOR_MODE = 1
@@ -48,6 +46,7 @@ else:
     color_mode = 'color'
     
 SAVED_MODEL_PATH = 'models/cat_dog_classfication_{}_{}_model.hdf5'.format(aug_str, color_mode)
+END_SAVED_MODEL_PATH = 'models/cat_dog_classfication_end_{}_{}_model.hdf5'.format(aug_str, color_mode)
 IMG_PATH = 'chart/{}_{}.png'.format(aug_str, color_mode)
 
 def create_images_answers(dir_path, filename=False):
@@ -145,7 +144,7 @@ Y_test = np_utils.to_categorical(y_test, NB_CLASSES)
 callbacks = [KC.TensorBoard(),
              KC.ModelCheckpoint(filepath=SAVED_MODEL_PATH,
              verbose=1,
-             save_weights_only=True,
+             save_weights_only=True, #model全体を保存
              save_best_only=True,
              period=10)]
 
@@ -213,51 +212,43 @@ layer6 = Conv2D(FILTERS * 2, 3, activation='relu')(layer5)
 layer7 = Conv2D(FILTERS * 2, 3, activation='relu')(layer6)
 layer8 = MaxPooling2D()(layer7)
 layer9 = Dropout(DROPOUT)(layer8)
-# In[12]:
 
 flatten = Flatten()(layer9)
 output = Dense(NB_CLASSES, activation='softmax')(flatten)
 model = Model(input_layer, output)
 model.compile(loss='binary_crossentropy', optimizer=Adam(lr=LR), metrics=['accuracy'])
 
-
-# In[13]:
-
-
-remove_log_files('logs/')
-if USE_DATAGEN:
-    history = model.fit_generator(datagen.flow(X_train, Y_train, batch_size=BATCH_SIZE), epochs=NB_EPOCH, verbose=VERBOSE, validation_data=(X_valid, Y_valid), shuffle=True, callbacks=callbacks, samples_per_epoch=X_train.shape[0])
+if len(sys.argv) > 1:
+    weights_file = sys.argv[1]
+    model.load_weights(weights_file)
 else:
-    history = model.fit(X_train, Y_train, batch_size=BATCH_SIZE, epochs=NB_EPOCH, verbose=VERBOSE, validation_data=(X_valid, Y_valid), shuffle=True, callbacks=callbacks)
+    remove_log_files('logs/')
+    if USE_DATAGEN:
+        history = model.fit_generator(datagen.flow(X_train, Y_train, batch_size=BATCH_SIZE), epochs=NB_EPOCH, verbose=VERBOSE, validation_data=(X_valid, Y_valid), shuffle=True, callbacks=callbacks, samples_per_epoch=X_train.shape[0])
+    else:
+        history = model.fit(X_train, Y_train, batch_size=BATCH_SIZE, epochs=NB_EPOCH, verbose=VERBOSE, validation_data=(X_valid, Y_valid), shuffle=True, callbacks=callbacks)
 
+    model.save_weights(END_SAVED_MODEL_PATH)
+    score = model.evaluate(X_test, Y_test, verbose=VERBOSE)
+    print('Test score:', score[0])
+    print('Test acc:', score[1])
 
-# In[14]:
+    plt.subplot(121)
+    plt.plot(history.history['acc'])
+    plt.plot(history.history['val_acc'])
+    plt.title('model acc')
+    plt.ylabel('acc') 
+    plt.xlabel('epoch')
+    plt.legend(['train', 'val'], loc='upper left')
 
-
-score = model.evaluate(X_test, Y_test, verbose=VERBOSE)
-print('Test score:', score[0])
-print('Test acc:', score[1])
-
-
-# In[15]:
-
-
-plt.subplot(121)
-plt.plot(history.history['acc'])
-plt.plot(history.history['val_acc'])
-plt.title('model acc')
-plt.ylabel('acc')
-plt.xlabel('epoch')
-plt.legend(['train', 'val'], loc='upper left')
-
-plt.subplot(122)
-plt.plot(history.history['loss'])
-plt.plot(history.history['val_loss'])
-plt.title('model loss')
-plt.ylabel('loss')
-plt.xlabel('epoch')
-plt.legend(['train', 'val'], loc='upper left')
-plt.savefig(IMG_PATH)
+    plt.subplot(122)
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.title('model loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'val'], loc='upper left')
+    plt.savefig(IMG_PATH)
 
 
 # train_dataのacc, lossは順調に推移するが、val_dataに対しては一定幅で同水準に留まる。
@@ -292,6 +283,8 @@ dog_wrong_cnt = 0
 #         plt.axis('off')
 #         plt.imshow(image)
 
+print(y_test)
+print(test_filenames)
 for i in range(len(X_test)-1):
     predicted_num = predict_answers[i]
     answer = y_test[i]
