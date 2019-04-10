@@ -214,7 +214,7 @@ if __name__ == '__main__':
     input_layer = Input(shape=SHAPE)
 
     if COLOR_MODE == 1:
-        FILTERS = 8
+        FILTERS = 16
     else:
         FILTERS = 8
     #参考: https://keras.io/getting-started/sequential-model-guide/

@@ -12,6 +12,8 @@ from keras.utils import np_utils
 from keras.models import Sequential, Model
 from keras.layers import Dense, Dropout, Flatten
 from keras.layers import  Conv1D, Conv2D, MaxPooling2D
+from keras.layers.normalization import BatchNormalization
+from keras.layers.core import Activation
 from keras.optimizers import SGD, Adam
 from matplotlib import pyplot as plt
 import keras
@@ -19,6 +21,7 @@ import keras.callbacks as KC
 from keras import regularizers
 from keras.engine.topology import Input
 from keras.preprocessing.image  import ImageDataGenerator
+from history_checkpoint_callback import HistoryCheckpoint, TargetHistory
 
 train_dir = 'clean_organized_images/train_images/'
 valid_dir = 'clean_organized_images/valid_images/'
@@ -28,13 +31,13 @@ TRAIN_RATIO = 0.8
 RESHAPED = 0
 NB_CLASSES = 2
 OPTIMIZER = SGD()
-BATCH_SIZE = 174
-NB_EPOCH = 1000
+BATCH_SIZE = 175
+NB_EPOCH = 250
 VALIDATION_SPLIT = 0.4
 VERBOSE = 1
 COLOR_MODE = 1
 USE_DATAGEN = False
-LR=0.0001
+LR=0.001
 DROPOUT=0.5
 
 if USE_DATAGEN:
@@ -57,6 +60,7 @@ ERROR_TEST = 'error_images/test/'
 
 def create_images_answers(dir_path, filename=False):
     files = glob.glob(os.path.join(dir_path, '*.jpg'))
+    files += glob.glob(os.path.join(dir_path, '*.jpeg'))
     files.sort()
     images = [resize_for_model(cv2.imread(file, COLOR_MODE)) for file in files]
     if filename == False:
@@ -202,9 +206,9 @@ if __name__ == '__main__':
     X_train = X_train.astype('float32')
     X_valid = X_valid.astype('float32')
     X_test = X_test.astype('float32')
-    X_train /= 255
-    X_valid /= 255
-    X_test /= 255
+   # X_train /= 255
+   # X_valid /= 255
+   # X_test /= 255
 
     Y_train = np_utils.to_categorical(y_train, NB_CLASSES)
     Y_valid = np_utils.to_categorical(y_valid, NB_CLASSES)
@@ -218,19 +222,30 @@ if __name__ == '__main__':
     else:
         FILTERS = 8
     #参考: https://keras.io/getting-started/sequential-model-guide/
-    layer2 = Conv2D(FILTERS, 3, activation='relu')(input_layer)
-    layer3 = Conv2D(FILTERS, 3, activation='relu')(layer2)
-    layer4 = MaxPooling2D()(layer3)
+    layer2 = Conv2D(FILTERS, 3, activation='relu', padding='same')(input_layer)
+    layer_bn = BatchNormalization()(layer2)
+    layer3 = Conv2D(FILTERS, 3, padding='same')(layer_bn)
+    layer_bn = BatchNormalization()(layer3)
+    layer_act = Activation('relu')(layer_bn)
+    layer4 = MaxPooling2D()(layer_act)
     layer5 = Dropout(DROPOUT)(layer4)
 
-    layer6 = Conv2D(FILTERS * 2, 3, activation='relu')(layer5)
-    layer7 = Conv2D(FILTERS * 2, 3, activation='relu')(layer6)
-    layer8 = MaxPooling2D()(layer7)
-    layer9 = Dropout(DROPOUT)(layer8)
+    """
+    layer6 = conv2d(filters * 2, 3, activation='relu', padding='same')(layer5)
+    layer_bn = batchnormalization()(layer6)
+    layer7 = conv2d(filters * 2, 3, activation='relu', padding='same')(layer_bn)
+    layer_bn = batchnormalization()(layer7)
+    layer_act = activation('relu')(layer_bn)
+    layer8 = maxpooling2d()(layer_act)
+    layer9 = dropout(dropout)(layer8)
+    #"""
 
-    flatten = Flatten()(layer9)
+    flatten = Flatten()(layer5)
+    #layer10 = Dense(10, activation='relu')(flatten)
+    #layer11 = Dropout(DROPOUT)(layer10)
     output = Dense(NB_CLASSES, activation='softmax')(flatten)
     model = Model(input_layer, output)
+    model.summary()
     model.compile(loss='binary_crossentropy', optimizer=Adam(lr=LR), metrics=['accuracy'])
 
     if len(sys.argv) > 1:
@@ -242,6 +257,11 @@ if __name__ == '__main__':
         model_name = END_SAVED_MODEL_PATH
         print('学習モード')
         callbacks = [KC.TensorBoard(),
+                    HistoryCheckpoint(filepath='chart/LearningCurve_{history}.png'
+                                    , verbose=1
+                                    , period=10
+                                    , targets=[TargetHistory.Loss, TargetHistory.Accuracy, TargetHistory.ValidationLoss, TargetHistory.ValidationAccuracy]
+                                   ),
                     KC.ModelCheckpoint(filepath=SAVED_MODEL_PATH,
                     verbose=1,
                     save_weights_only=True, #model全体を保存
@@ -250,8 +270,8 @@ if __name__ == '__main__':
 
         if USE_DATAGEN:
             datagen = ImageDataGenerator(rotation_range=10,
-                                        width_shift_range=0.2,
-                                        height_shift_range=0.2,
+                                        #width_shift_range=0.2,
+                                        #height_shift_range=0.2,
                                         vertical_flip=True)
             datagen.fit(X_train)
 
@@ -263,7 +283,7 @@ if __name__ == '__main__':
         else:
             remove_log_files('logs/')
             if USE_DATAGEN:
-                history = model.fit_generator(datagen.flow(X_train, Y_train, batch_size=BATCH_SIZE), epochs=NB_EPOCH, verbose=VERBOSE, validation_data=(X_valid, Y_valid), shuffle=True, callbacks=callbacks, samples_per_epoch=X_train.shape[0])
+                history = model.fit_generator(datagen.flow(X_train, Y_train, batch_size=BATCH_SIZE), epochs=NB_EPOCH, verbose=VERBOSE, validation_data=(X_valid, Y_valid), shuffle=True, callbacks=callbacks, samples_per_epoch=X_train.shape[0] * 3)
             else:
                 history = model.fit(X_train, Y_train, batch_size=BATCH_SIZE, epochs=NB_EPOCH, verbose=VERBOSE, validation_data=(X_valid, Y_valid), shuffle=True, callbacks=callbacks)
 
