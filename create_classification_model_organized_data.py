@@ -31,7 +31,7 @@ TRAIN_RATIO = 0.8
 RESHAPED = 0
 NB_CLASSES = 2
 OPTIMIZER = SGD()
-BATCH_SIZE = 30 #訓練データ数
+BATCH_SIZE = 174 #訓練データ数
 NB_EPOCH = 50
 VALIDATION_SPLIT = 0.4
 VERBOSE = 1
@@ -259,7 +259,7 @@ if __name__ == '__main__':
         callbacks = [KC.TensorBoard(),
                     HistoryCheckpoint(filepath='chart/LearningCurve_{history}.png'
                                     , verbose=1
-                                    , period=10
+                                    , period=2
                                     , targets=[TargetHistory.Loss, TargetHistory.Accuracy, TargetHistory.ValidationLoss, TargetHistory.ValidationAccuracy]
                                    ),
                     KC.ModelCheckpoint(filepath=SAVED_MODEL_PATH,
