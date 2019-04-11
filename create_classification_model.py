@@ -124,24 +124,26 @@ def model_evalute(model, X, Y, y, filenames, model_name, mode=1):
     cat_wrong_cnt = 0
     dog_wrong_cnt = 0
 
-    # 間違った画像を表示する
-    # plt.figure(figsize=(50,50))
-    # columns = 5
-    # for i, image in enumerate(X_test):
-    #     plt.subplot(len(X_test) / columns + 1, columns, i + 1)
-    #     predicted_num = predict_answers[i]
-    #     answer = y_test[i]
+     """
+     間違った画像を表示する
+     plt.figure(figsize=(50,50))
+     columns = 5
+     for i, image in enumerate(X_test):
+         plt.subplot(len(X_test) / columns + 1, columns, i + 1)
+         predicted_num = predict_answers[i]
+         answer = y_test[i]
 
-    #     if predicted_num != answer:
-    #         if predicted_num == 0:
-    #             label = 'cat'
-    #             cat_wrong_cnt += 1
-    #         else:
-    #             label = 'dog'
-    #             dog_wrong_cnt += 1
-    #         plt.title(label, fontsize=40)
-    #         plt.axis('off')
-    #         plt.imshow(image)
+         if predicted_num != answer:
+             if predicted_num == 0:
+                 label = 'cat'
+                 cat_wrong_cnt += 1
+             else:
+                 label = 'dog'
+                 dog_wrong_cnt += 1
+             plt.title(label, fontsize=40)
+             plt.axis('off')
+             plt.imshow(image)
+    """
 
     for i in range(len(X)-1):
         predicted_num = predict_answers[i]

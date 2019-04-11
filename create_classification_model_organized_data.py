@@ -23,16 +23,16 @@ from keras.engine.topology import Input
 from keras.preprocessing.image  import ImageDataGenerator
 from history_checkpoint_callback import HistoryCheckpoint, TargetHistory
 
-train_dir = 'clean_organized_images/train_images/'
-valid_dir = 'clean_organized_images/valid_images/'
-test_dir = 'clean_organized_images/test_images/'
-SIZE = 128 #100->64
+train_dir = 'clean_organized_images/train/'
+valid_dir = 'clean_organized_images/valid/'
+test_dir = 'clean_organized_images/test/'
+SIZE = 128
 TRAIN_RATIO = 0.8
 RESHAPED = 0
 NB_CLASSES = 2
 OPTIMIZER = SGD()
-BATCH_SIZE = 175
-NB_EPOCH = 250
+BATCH_SIZE = 30 #訓練データ数
+NB_EPOCH = 50
 VALIDATION_SPLIT = 0.4
 VERBOSE = 1
 COLOR_MODE = 1
@@ -59,8 +59,7 @@ ERROR_VALID = 'error_images/valid/'
 ERROR_TEST = 'error_images/test/'
 
 def create_images_answers(dir_path, filename=False):
-    files = glob.glob(os.path.join(dir_path, '*.jpg'))
-    files += glob.glob(os.path.join(dir_path, '*.jpeg'))
+    files = glob.glob(os.path.join(dir_path, '*.png'))
     files.sort()
     images = [resize_for_model(cv2.imread(file, COLOR_MODE)) for file in files]
     if filename == False:
@@ -128,25 +127,26 @@ def model_evalute(model, X, Y, y, filenames, model_name, mode=1):
     cat_wrong_cnt = 0
     dog_wrong_cnt = 0
 
-    # 間違った画像を表示する
-    # plt.figure(figsize=(50,50))
-    # columns = 5
-    # for i, image in enumerate(X_test):
-    #     plt.subplot(len(X_test) / columns + 1, columns, i + 1)
-    #     predicted_num = predict_answers[i]
-    #     answer = y_test[i]
+    """
+     間違った画像を表示する
+     plt.figure(figsize=(50,50))
+     columns = 5
+     for i, image in enumerate(X_test):
+         plt.subplot(len(X_test) / columns + 1, columns, i + 1)
+         predicted_num = predict_answers[i]
+         answer = y_test[i]
 
-    #     if predicted_num != answer:
-    #         if predicted_num == 0:
-    #             label = 'cat'
-    #             cat_wrong_cnt += 1
-    #         else:
-    #             label = 'dog'
-    #             dog_wrong_cnt += 1
-    #         plt.title(label, fontsize=40)
-    #         plt.axis('off')
-    #         plt.imshow(image)
-
+         if predicted_num != answer:
+             if predicted_num == 0:
+                 label = 'cat'
+                 cat_wrong_cnt += 1
+             else:
+                 label = 'dog'
+                 dog_wrong_cnt += 1
+             plt.title(label, fontsize=40)
+             plt.axis('off')
+             plt.imshow(image)
+    """
     for i in range(len(X)-1):
         predicted_num = predict_answers[i]
         answer = y[i]
@@ -202,13 +202,12 @@ if __name__ == '__main__':
         X_valid = X_valid.reshape(X_valid.shape[0],  SIZE, SIZE, 1)
         X_test = X_test.reshape(X_test.shape[0],  SIZE, SIZE, 1)
 
-
     X_train = X_train.astype('float32')
     X_valid = X_valid.astype('float32')
     X_test = X_test.astype('float32')
-   # X_train /= 255
-   # X_valid /= 255
-   # X_test /= 255
+    X_train /= 255
+    X_valid /= 255
+    X_test /= 255
 
     Y_train = np_utils.to_categorical(y_train, NB_CLASSES)
     Y_valid = np_utils.to_categorical(y_valid, NB_CLASSES)
@@ -223,10 +222,10 @@ if __name__ == '__main__':
         FILTERS = 8
     #参考: https://keras.io/getting-started/sequential-model-guide/
     layer2 = Conv2D(FILTERS, 3, activation='relu', padding='same')(input_layer)
-    layer_bn = BatchNormalization()(layer2)
-    layer3 = Conv2D(FILTERS, 3, padding='same')(layer_bn)
-    layer_bn = BatchNormalization()(layer3)
-    layer_act = Activation('relu')(layer_bn)
+   # layer_bn = BatchNormalization()(layer2)
+    layer3 = Conv2D(FILTERS, 3, padding='same')(layer2)
+   # layer_bn = BatchNormalization()(layer3)
+    layer_act = Activation('relu')(layer3)
     layer4 = MaxPooling2D()(layer_act)
     layer5 = Dropout(DROPOUT)(layer4)
 
@@ -248,6 +247,7 @@ if __name__ == '__main__':
     model.summary()
     model.compile(loss='binary_crossentropy', optimizer=Adam(lr=LR), metrics=['accuracy'])
 
+   # BATCH_SIZE = len(X_train)
     if len(sys.argv) > 1:
         print('推論モード')
         weights_file = sys.argv[1]
@@ -275,36 +275,12 @@ if __name__ == '__main__':
                                         vertical_flip=True)
             datagen.fit(X_train)
 
-
-        if len(sys.argv) > 1:
-            weights_file = sys.argv[1]
-            model.load_weights(weights_file)
-            empty_error_dir()
-        else:
             remove_log_files('logs/')
-            if USE_DATAGEN:
-                history = model.fit_generator(datagen.flow(X_train, Y_train, batch_size=BATCH_SIZE), epochs=NB_EPOCH, verbose=VERBOSE, validation_data=(X_valid, Y_valid), shuffle=True, callbacks=callbacks, samples_per_epoch=X_train.shape[0] * 3)
-            else:
-                history = model.fit(X_train, Y_train, batch_size=BATCH_SIZE, epochs=NB_EPOCH, verbose=VERBOSE, validation_data=(X_valid, Y_valid), shuffle=True, callbacks=callbacks)
+            history = model.fit_generator(datagen.flow(X_train, Y_train, batch_size=BATCH_SIZE), epochs=NB_EPOCH, verbose=VERBOSE, validation_data=(X_valid, Y_valid), shuffle=True, callbacks=callbacks, samples_per_epoch=len(X_train))
+        else:
+            history = model.fit(X_train, Y_train, batch_size=BATCH_SIZE, epochs=NB_EPOCH, verbose=VERBOSE, validation_data=(X_valid, Y_valid), shuffle=True, callbacks=callbacks)
 
-            model.save_weights(END_SAVED_MODEL_PATH)
-
-            plt.subplot(121)
-            plt.plot(history.history['acc'])
-            plt.plot(history.history['val_acc'])
-            plt.title('model acc')
-            plt.ylabel('acc') 
-            plt.xlabel('epoch')
-            plt.legend(['train', 'val'], loc='upper left')
-
-            plt.subplot(122)
-            plt.plot(history.history['loss'])
-            plt.plot(history.history['val_loss'])
-            plt.title('model loss')
-            plt.ylabel('loss')
-            plt.xlabel('epoch')
-            plt.legend(['train', 'val'], loc='upper left')
-            plt.savefig(IMG_PATH)
+        model.save_weights(END_SAVED_MODEL_PATH)
 
     for i, (X, Y, y, filenames) in enumerate(((X_train, Y_train, y_train, train_filenames), (X_valid, Y_valid, y_valid, valid_filenames), (X_test, Y_test, y_test, test_filenames))):
         model_evalute(model, X, Y, y, filenames, model_name, mode=i+1)

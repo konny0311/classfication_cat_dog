@@ -6,3 +6,5 @@ logs/
 .DS_Store
 generated/
 data/
+__pycache__/
+__MACOSX/
