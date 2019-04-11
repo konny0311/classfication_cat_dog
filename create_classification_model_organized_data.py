@@ -35,10 +35,15 @@ BATCH_SIZE = 174 #訓練データ数
 NB_EPOCH = 50
 VALIDATION_SPLIT = 0.4
 VERBOSE = 1
-COLOR_MODE = 1
+COLOR_MODE = 0
 USE_DATAGEN = False
 LR=0.001
 DROPOUT=0.5
+
+if COLOR_MODE == 1: #color
+    FILTERS = 16
+else: #gray
+    FILTERS = 24
 
 if USE_DATAGEN:
     aug_str = 'with_aug'
@@ -216,10 +221,6 @@ if __name__ == '__main__':
     #functional API
     input_layer = Input(shape=SHAPE)
 
-    if COLOR_MODE == 1:
-        FILTERS = 16
-    else:
-        FILTERS = 8
     #参考: https://keras.io/getting-started/sequential-model-guide/
     layer2 = Conv2D(FILTERS, 3, activation='relu', padding='same')(input_layer)
    # layer_bn = BatchNormalization()(layer2)
